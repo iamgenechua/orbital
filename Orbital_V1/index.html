@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Orbital Version 1</title>
+    </head>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = io();
+        socket.on('timeLeftInRound', function(data) {
+            document.write(data);
+        });
+        socket.on('timeLeftToRest', function(data) {
+            document.write(data);
+        });
+        socket.on('voter', function(data) {
+            document.write(" VOTER ");
+        });
+        socket.on('answerer', function(data) {
+            document.write(" ANSWERER ");
+        });
+    </script>
+    <body>
+        <h1>Backend</h1>
+    </body>
+</html>

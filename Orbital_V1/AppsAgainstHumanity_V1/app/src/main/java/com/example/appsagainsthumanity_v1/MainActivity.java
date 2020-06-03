@@ -19,6 +19,7 @@ import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,22 +95,8 @@ public class MainActivity extends AppCompatActivity {
 
         btn_submit = findViewById(R.id.btn_submit);
 
-        // Connect to Socket Server
         try {
-            socket = IO.socket("http://10.0.2.2:3000");
-            socket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
-                @Override
-                public void call(Object... args) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(MainActivity.this, "Connected", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-            });
-
-            socket.connect();
+            socket = JoinGame.socket;
             runGame();
         } catch (Exception e) {
             Toast.makeText(MainActivity.this, e.getMessage() + "", Toast.LENGTH_SHORT).show();
@@ -317,9 +304,16 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View v) { // if voter, deal with listView_playArea
                     // deal with this after you handle the answerer side
                     chosenCard.ifPresent(votedAnswer -> {
-                        socket.emit("voterHasVoted", votedAnswer);
-                        listView_playArea.setEnabled(false); // don't let the voter vote for another card once they have
-                        chosenCard = Optional.empty(); // empty the chosenCard variable so cannot submit anything when button is clicked again
+                        try {
+                            JSONObject votedInfo = new JSONObject();
+                            votedInfo.put("roomName", JoinGame.roomName);
+                            votedInfo.put("votedAnswer", votedAnswer);
+                            socket.emit("voterHasVoted", votedInfo);
+                            listView_playArea.setEnabled(false); // don't let the voter vote for another card once they have
+                            chosenCard = Optional.empty(); // empty the chosenCard variable so cannot submit anything when button is clicked again
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     });
                 }
             });
@@ -332,9 +326,17 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) { // if answerer, deal with listView_answers
                     chosenCard.ifPresent(answer -> {
-                        socket.emit("selectAnswer", answer); // emit the answer string back to server
-                        listView_answers.setEnabled(false); // don't let the answerer play another card once they have chosen a card
-                        chosenCard = Optional.empty(); // empty the chosenCard variable so cannot submit anything when button is clicked again
+                        try {
+                            // Store both roomName and the answer string into a JSONObject to be passed to the server
+                            JSONObject answerInfo = new JSONObject();
+                            answerInfo.put("answerString", answer);
+                            answerInfo.put("roomName", JoinGame.roomName);
+                            socket.emit("selectAnswer", answerInfo); // emit the answer string back to server
+                            listView_answers.setEnabled(false); // don't let the answerer play another card once they have chosen a card
+                            chosenCard = Optional.empty(); // empty the chosenCard variable so cannot submit anything when button is clicked again
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     });
 
                 }

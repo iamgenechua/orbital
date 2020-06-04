@@ -2,6 +2,7 @@ package com.example.appsagainsthumanity_v1;
 
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.graphics.Color;
@@ -35,8 +36,15 @@ public class MainActivity extends AppCompatActivity {
     // ======================== START OF GLOBAL VARIABLES ====================================== //
     TextView textView_status;
     TextView textView_question;
-    TextView textView_playArea;
     TextView textView_timer;
+    TextView textView_score;
+    TextView textView_round;
+
+    ConstraintLayout playerListLayout;
+    ArrayList<String> playerList;
+    Button bttn_backToMain;
+    ListView playerListview;
+    ArrayAdapter<String> arrayAdapterPlayers;
 
     ArrayList<String> hand;
     ListView listView_answers;
@@ -50,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     Socket socket;
     boolean isVoter; // boolean to determine if the player is a voter or an answerer. Will change depending on info received by socket.
     boolean canAnswer; // if true, means answerers still got time to pick an answer from their hand. else, no more time to pick an answer from hand.
+    int score = 0;
+    int round = 1;
 
     Button btn_submit;
 
@@ -65,10 +75,22 @@ public class MainActivity extends AppCompatActivity {
 
         textView_status = findViewById(R.id.textView_status); // initialise status textView
         textView_question = findViewById(R.id.textView_question); // initialise question box textView
-        textView_playArea = findViewById(R.id.textView_playArea); // initialise playArea textView
         textView_timer = findViewById(R.id.textView_timer); // initialise timer textView
+        textView_score = findViewById(R.id.textView_score);// initialise score textView
+        textView_score.setText(Integer.toString(score));
+        textView_round = findViewById(R.id.textView_round);// initialise round textView
+        textView_round.setText(Integer.toString(round));
 
         chosenCard = Optional.empty(); // If answerer, this Optional will store the answer card chosen from hand. If voter, this Optional will store the card voted from play area.
+
+        // Initialise the playerInfo layout
+        playerListLayout = findViewById(R.id.playerListLayout);
+        playerListview = findViewById(R.id.playerListview);
+        bttn_backToMain = findViewById(R.id.bttn_backToMain);
+        playerListLayout.setVisibility(View.INVISIBLE);
+        playerList = new ArrayList<>();
+        arrayAdapterPlayers = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, playerList);
+        playerListview.setAdapter(arrayAdapterPlayers);
 
         // Display hand in client
         hand = new ArrayList<>();
@@ -183,7 +205,10 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         textView_timer.setTextColor(Color.parseColor("#FA8072")); // color is red to signify the time left to pick an answer from hand
-                        textView_timer.setText("Timer: " + args[0].toString());
+                        int timeLeftSeconds = Integer.parseInt(args[0].toString());
+                        int minutes = timeLeftSeconds / 60;
+                        int seconds = timeLeftSeconds % 60;
+                        textView_timer.setText("Answer: " + String.format("%02d:%02d", minutes, seconds));
                     }
                 });
             }
@@ -197,7 +222,10 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         textView_timer.setTextColor(Color.parseColor("#00A86B")); // color is green to signify the time left to vote for the winning card
-                        textView_timer.setText("Timer: " + args[0].toString());
+                        int timeLeftSeconds = Integer.parseInt(args[0].toString());
+                        int minutes = timeLeftSeconds / 60;
+                        int seconds = timeLeftSeconds % 60;
+                        textView_timer.setText("Vote: " + String.format("%02d:%02d", minutes, seconds));
                     }
                 });
             }
@@ -225,6 +253,41 @@ public class MainActivity extends AppCompatActivity {
                             listView_playArea.setBackgroundColor(Color.parseColor("#000000")); // just my way of making the cards hidden. Change this code to whatever u want to make the cards hidden
                         }
 
+                        arrayAdapterPlayArea.notifyDataSetChanged();
+                    }
+                });
+            }
+        });
+
+        // socket listener to update the player scores
+        socket.on("updatePlayerInfo", new Emitter.Listener() {
+            @Override
+            public void call(Object... args) {
+                final JSONArray jArray = (JSONArray) args[0];
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        playerList.clear();
+                        for (int player = 0; player < jArray.length(); player++) {
+                            try {
+                                JSONObject currPlayer = (JSONObject) jArray.get(player);
+                                String currPlayerName = currPlayer.getString("name");
+                                int currPlayerScore = currPlayer.getInt("score");
+                                playerList.add(currPlayerName + " : " + currPlayerScore + "pts");// update the playerInfo listview
+                                if (currPlayerName.equals(JoinGame.userName)) {//update score of current player
+                                    score = currPlayerScore;
+                                    textView_score.setText(Integer.toString(score));
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        Collections.sort(playArea); // Shuffle the cards just by sorting.
+                        if (canAnswer) {  // Round has not ended, make the cards hidden
+                            listView_playArea.setBackgroundColor(Color.parseColor("#000000")); // just my way of making the cards hidden. Change this code to whatever u want to make the cards hidden
+                        }
+
+                        arrayAdapterPlayers.notifyDataSetChanged();
                         arrayAdapterPlayArea.notifyDataSetChanged();
                     }
                 });
@@ -261,7 +324,14 @@ public class MainActivity extends AppCompatActivity {
                             // just the easiest way for me to display the winner.
                             // jArray.get(0) <-- gets the player's socketID (because server pass in socketID. Server should pass in the name in the future
                             // jArray.get(1) <-- gets the winning card chosen by the voter
-                            Toast.makeText(getApplicationContext(), jArray.get(0).toString() + " played the winning card: " + jArray.get(1).toString(), Toast.LENGTH_LONG).show();
+                            String winnerName = jArray.get(0).toString();
+                            if (winnerName.equals(JoinGame.userName)) {
+                                Toast.makeText(getApplicationContext(), "You won!", Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(getApplicationContext(), jArray.get(0).toString() + " played the winning card: " + jArray.get(1).toString(), Toast.LENGTH_LONG).show();
+                            }
+                            round++;
+                            textView_round.setText(Integer.toString(round));
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
@@ -281,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        textView_status.setText("YOU ARE DISCONNECTED");
+                        textView_status.setText("DISCONNECTED");
                     }
                 });
             }
@@ -294,7 +364,7 @@ public class MainActivity extends AppCompatActivity {
     public void updateInterface(boolean isVoter) {
         canAnswer = true; // allow players to be able to select an ans
         if (isVoter) {
-            textView_status.setText("YOU ARE THE VOTER");
+            textView_status.setText("VOTER");
             btn_submit.setText("Vote this card!");
             listView_answers.setEnabled(false); // don't allow voter to play a card from their hand at all.
             listView_playArea.setEnabled(false); // don't allow voter to choose a card from playArea straightaway. Wait for everyone to play their card first.
@@ -318,7 +388,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            textView_status.setText("YOU ARE THE ANSWERER");
+            textView_status.setText("ANSWERER");
             btn_submit.setText("Pick this card!");
             listView_answers.setEnabled(true); // allow answerer to choose a card
             btn_submit.setOnClickListener(new View.OnClickListener() {
@@ -342,6 +412,14 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
+    }
+
+    public void backToMain(View view) {// to set the playerInfo page invisible
+        playerListLayout.setVisibility(View.INVISIBLE);
+    }
+
+    public void evokeInfo(View view) {// to bring out the playerInfo page
+        playerListLayout.setVisibility(View.VISIBLE);
     }
 
     // ======================== END OF HELPER FUNCTIONS ====================================== //

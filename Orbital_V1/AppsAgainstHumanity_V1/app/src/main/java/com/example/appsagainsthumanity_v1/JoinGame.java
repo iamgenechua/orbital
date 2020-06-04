@@ -20,9 +20,9 @@ public class JoinGame extends AppCompatActivity {
     EditText roomEntry;
     EditText nameEntry;
 
-    public static Socket socket;
-    public static String roomName;
-    public static String userName;
+    public static Socket socket;// this maintains connection throughout the duration
+    public static String roomName;// name of the room
+    public static String userName;// name of the player
 
 
     @Override
@@ -30,18 +30,20 @@ public class JoinGame extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_join_game);
 
+        // initialise the two editTexts
         roomEntry = findViewById(R.id.roomEntry);
         nameEntry = findViewById(R.id.nameEntry);
 
     }
 
 
-    public void joinGame(View view) {
+    public void joinGame(View view) {// the player has keyed in his particulars and decides to join a game
 
+        // obtain the player entries
         roomName = roomEntry.getText().toString();
         userName = nameEntry.getText().toString();
 
-        if (roomName == "" || userName == "") {
+        if (roomName == "" || userName == "") {// check if the player has entered a room name and player name
             Toast.makeText(this, "You did not enter a username or a roomID", Toast.LENGTH_LONG).show();
         } else {
             // Connect to Socket Server
@@ -60,7 +62,7 @@ public class JoinGame extends AppCompatActivity {
                 });
 
                 socket.connect();
-
+                // to inform the server who from which room has connected to the server
                 JSONObject userInfo = new JSONObject();
                 userInfo.put("RoomID", roomName);
                 userInfo.put("Username", userName);
@@ -69,6 +71,7 @@ public class JoinGame extends AppCompatActivity {
                 Toast.makeText(this, e.getMessage() + "", Toast.LENGTH_SHORT).show();
             }
         }
+        // get to the next activity
         Intent intent = new Intent(getApplicationContext(), WaitingLobby.class);
         startActivity(intent);
     }

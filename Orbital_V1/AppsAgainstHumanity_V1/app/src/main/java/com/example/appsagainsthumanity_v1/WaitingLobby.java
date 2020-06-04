@@ -33,13 +33,13 @@ public class WaitingLobby extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_waiting_lobby);
 
-        TextView roomNameDisplay = findViewById(R.id.roomNameDisplay);
+        TextView roomNameDisplay = findViewById(R.id.roomNameDisplay);// display of playernames of the current room
         roomNameDisplay.setText("Room: " + JoinGame.roomName);
 
-        bttn_start = findViewById(R.id.bttn_start);
-        playerList = findViewById(R.id.playerList);
-        socket = JoinGame.socket;
-        ArrayList<String> playerNames = new ArrayList<>();
+        bttn_start = findViewById(R.id.bttn_start);// initialise the start game button
+        playerList = findViewById(R.id.playerList);// initialise the player listview
+        socket = JoinGame.socket;// obtain the connected socket from the previous activity
+        ArrayList<String> playerNames = new ArrayList<>();// arraylist of all player names
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, playerNames);
         playerList.setAdapter(arrayAdapter);
 
@@ -52,7 +52,7 @@ public class WaitingLobby extends AppCompatActivity {
                     @Override
                     public void run() {
                         playerNames.clear(); // same method as the updating of hand cards
-                        for (int name = 0; name < jArray.length(); name++) {
+                        for (int name = 0; name < jArray.length(); name++) {// update the player name listview
                             try {
                                 String tempString = (String) jArray.get(name);
                                 playerNames.add(tempString);

@@ -10,25 +10,6 @@ let io = require('socket.io')(http);
 // import cards from the database
 let cardDeck = require('./database');
 
-// // declare global variables
-// let ROUND_TIME = 10;
-// let REST_TIME = 1;
-// let MAX_HAND = 5;
-// let NUMBER_ROUNDS = 10;
-
-// let voterIndex = 0; // the index of the voter. Loop around with %.
-// let questions = cardDeck.questionsDatabase; // array of questions
-// let answers = cardDeck.answersDatabase; // array of answers
-// let questionIndex = 0;
-// let answerIndex = 0;
-// let voterHasVoted = false;
-
-// // Create a mutable arraylist of users playing
-// let players = new ArrayList;
-// // Create a mutable array of the cards in the play area
-// let playArea = [];
-
-
 // Constructor for player whenever someone joins the server
 function Player(socketID, score, hand = [], name) {
     this.socketID = socketID;
@@ -64,20 +45,13 @@ function createRoom(roomName) {
         questionIndex : 0,
         answerIndex : 0,
         voterHasVoted : false,
-        // Create a mutable arraylist of users playing
-        players : new ArrayList,
-        playerNames : new ArrayList,
+        players : new ArrayList,// Create a mutable arraylist of players
+        playerNames : new ArrayList,// Create a mutable arraylist with all the player names
         // Create a mutable array of the cards in the play area
         playArea : []
     }
-    roomMap.set(roomName, gameRoom);// Create a Key-Value pair of roomName with room attributes
+    roomMap.set(roomName, gameRoom);// Create a Key-Value pair of roomName with the room object
 }
-
-// Adds a player to a game room
-// function joinRoom(roomName, player) {
-//     var gameRoom = roomMap.get(roomName);
-//     gameRoom.players.push(player);
-// }
 
 // Create a player when player connects to Server
 function createPlayer(roomName, socketID, name) {
@@ -89,7 +63,7 @@ function createPlayer(roomName, socketID, name) {
         player.hand.push(gameRoom.answers[answerPosition]); // deal MAX_HAND to each player's hand upon connection
         gameRoom.answerIndex++;
     }
-    gameRoom.players.add(player);
+    gameRoom.players.add(player);// to add the newly created player into the respective room
     gameRoom.playerNames.add(name);// to keep track of playerNames for the sake of namelist
     io.to(player.socketID).emit('answer', player.hand); // emitting an array
 }
@@ -99,15 +73,15 @@ function updateVariables(roomName) {
     var gameRoom = roomMap.get(roomName);
 
     console.log("\x1b[5m%s\x1b[0m", "Round Starting now"); // logs the start of the round. (Testing purposes)
-    //console.log("\x1b[33m%s\x1b[0m", "Total online players: " + gameRoom.players.length); // logs how many players playing this round. To change to emitting the list of players online
+    console.log("\x1b[33m%s\x1b[0m", "Total online players: " + gameRoom.players.length); // logs how many players playing this round. To change to emitting the list of players online
     gameRoom.voterHasVoted = false; // reset voter to state to haven't voted yet
 
     // update playArea
     gameRoom.playArea.length = 0; // clear the play Area
     io.in(roomName).emit('updatePlayArea', gameRoom.playArea); // emit the updated play area
 
-    // update player scores
-    io.in(roomName).emit('updatePlayerScores', gameRoom.players); // emit the updated list of players and their respective scores (client side not done)
+    // update player infos
+    io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
 }
 
 // Change player turn
@@ -150,7 +124,6 @@ function dealQuestionCard(roomName) {
 function dealAnswerCards(roomName) {
     var gameRoom = roomMap.get(roomName);
     try {
-        // console.log("Player arr size: " + gameRoom.players.length);
         for (let player = 0; player < gameRoom.players.length; player++) {
             let answerPosition = gameRoom.answerIndex % gameRoom.answers.length; // prevent arrayOutOfBoundsException
             let currentPlayer = gameRoom.players.get(player);
@@ -235,24 +208,22 @@ io.on('connection', function(socket) {
     socket.on("joinRoom", function(userInfo) {
         roomName = userInfo.RoomID;
         userName = userInfo.Username;
-        console.log(userName);
-        
-        if (!roomMap.has(roomName)) {
+        if (!roomMap.has(roomName)) {// check if the room has been created, if not, create a new room with the respective roomName
             createRoom(roomName);  
         }
-        createPlayer(roomName, socket.id, userName);
-        socket.join(roomName);
-
+        createPlayer(roomName, socket.id, userName);// create a player object with attributes of the connected socket
+        socket.join(roomName);// join the current socket to the respective channel(room)
         var gameRoom = roomMap.get(roomName);
-        console.log(gameRoom.players.length);
         io.in(roomName).emit("newPlayerJoined", gameRoom.playerNames);// inform the waiting lobby of this room that a new player has joined
     });
 
 
     // socket listener to get the game started for a particular room when a player decides to start
     socket.on("startGameServer", function(roomName) {
-        io.in(roomName).emit("startGameClient");
-        gameRound(roomName);
+        io.in(roomName).emit("startGameClient");// inform all the players of the particular room to start the game
+        var gameRoom = roomMap.get(roomName);
+        io.in(roomName).emit('updatePlayerInfo', gameRoom.players);// update all players of the room with player info
+        gameRound(roomName);// start the game
     });
     
     // socket listener to get the answer string that the client selects
@@ -298,13 +269,13 @@ io.on('connection', function(socket) {
         
         // find the player that played the winning card and increase his score
         for (let i = 0; i < gameRoom.playArea.length; i++) { // remember that playArea contains arrayPairs of [answerString, socketID]
-            if (gameRoom.playArea[i][0] === gameRoom.votedAnswerString) { // look for the player with the winning card
+            if (gameRoom.playArea[i][0] === votedAnswerString) { // look for the player with the winning card
                 let winningSocketID = gameRoom.playArea[i][1]; // get the socketID of the winning player
                 gameRoom.players.find(function(winningPlayer) {
                     if (winningPlayer.socketID == winningSocketID) {
                         winningPlayer.score += 1; // add 1 to the score of the winning player;
                         
-                        io.in(roomName).emit('winningPlayer', new Array(winningPlayer.socketID, votedAnswerString) ); // right now, emit socketID, in the future, emit the name
+                        io.in(roomName).emit('winningPlayer', new Array(winningPlayer.name, votedAnswerString)); // right now, emit socketID, in the future, emit the name
                     }
                 });
                 break;
@@ -314,6 +285,7 @@ io.on('connection', function(socket) {
 
 
     socket.on('disconnect', function() {
+        // check if the current disconnected socket id is registered with roomNameSocketIdMap (this condition is to prevent certain bugs during disconnection, to be improved)
         if (roomNameSocketIdMap.has(socket.id)) {
             roomName = roomNameSocketIdMap.get(socket.id);
             var gameRoom = roomMap.get(roomName);
@@ -332,12 +304,10 @@ io.on('connection', function(socket) {
 // Start server
 http.listen(3000, function() {
     console.log("SERVER GAME STARTED ON PORT: 3000");
-    // ADD CODE HERE TO:
-    // bring them to waiting room
     
     // NOTICE: Because i start the game round ASAP, the players have to wait for one round to pass after connection. 
     // but once you bring them to game room, and the game round starts when the press the button, i think this problem will go away
-    //gameRound();
+    // XUANQI: this problem doesn't go away
 })
 
 // ===================================================== END OF SOCKET LISTENERS ===================================================== //

@@ -37,14 +37,14 @@ public class JoinGame extends AppCompatActivity {
     }
 
 
-    public void joinGame(View view) {// the player has keyed in his particulars and decides to join a game
+    public void joinGame(View view) {// the player has keyed in his particulars and decides to join a game (set OnClick has been done in XML)
 
         // obtain the player entries
         roomName = roomEntry.getText().toString();
         userName = nameEntry.getText().toString();
 
-        if (roomName == "" || userName == "") {// check if the player has entered a room name and player name
-            Toast.makeText(this, "You did not enter a username or a roomID", Toast.LENGTH_LONG).show();
+        if (roomName.equals("")  || userName.equals("")) {// check if the player has entered a room name and player name
+            // do not proceed if user never key in anything
         } else {
             // Connect to Socket Server
             try {

@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -137,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
                     @RequiresApi(api = Build.VERSION_CODES.N)
                     @Override
                     public void run() {
+                        Log.i("Game start", "start");
                         isVoter = true;
                         updateInterface(isVoter); // encapsulates the User interface
                     }
@@ -420,6 +422,18 @@ public class MainActivity extends AppCompatActivity {
 
     public void evokeInfo(View view) {// to bring out the playerInfo page
         playerListLayout.setVisibility(View.VISIBLE);
+    }
+
+    // Overriding the back button to disconnect when it is clicked
+    @Override
+    public void onBackPressed() {
+        socket.disconnect(); // emits disconnection when player clicks back button
+
+        // jump straight to the join game screen
+        Intent intent = new Intent(getApplicationContext(), JoinGame.class);
+        startActivity(intent);
+
+        super.onBackPressed();
     }
 
     // ======================== END OF HELPER FUNCTIONS ====================================== //

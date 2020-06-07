@@ -85,4 +85,11 @@ public class WaitingLobby extends AppCompatActivity {
     public void startGame(View view) {
         socket.emit("startGameServer", JoinGame.roomName);
     }
+
+    // Overriding the back button to disconnect when it is clicked
+    @Override
+    public void onBackPressed() {
+        socket.disconnect(); // emits disconnection when player clicks back button
+        super.onBackPressed();
+    }
 }

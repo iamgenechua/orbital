@@ -9,6 +9,8 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import io.socket.client.IO;
@@ -17,14 +19,19 @@ import io.socket.emitter.Emitter;
 
 public class JoinGame extends AppCompatActivity {
 
-    EditText roomEntry;
-    EditText nameEntry;
-
+    // ======================== START OF GLOBAL VARIABLES ====================================== //
+    // initialise public static variables
     public static Socket socket;// this maintains connection throughout the duration
     public static String roomName;// name of the room
     public static String userName;// name of the player
 
+    // initialise views
+    EditText roomEntry;
+    EditText nameEntry;
 
+    // ======================== END OF GLOBAL VARIABLES ====================================== //
+
+    // ======================== START OF ONCREATE FUNCTION ====================================== //
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,9 +40,10 @@ public class JoinGame extends AppCompatActivity {
         // initialise the two editTexts
         roomEntry = findViewById(R.id.roomEntry);
         nameEntry = findViewById(R.id.nameEntry);
-
     }
+    // ======================== END OF ONCREATE FUNCTION ====================================== //
 
+    // ======================== START OF HELPER FUNCTIONS ====================================== //
 
     public void joinGame(View view) {// the player has keyed in his particulars and decides to join a game (set OnClick has been done in XML)
 
@@ -67,12 +75,50 @@ public class JoinGame extends AppCompatActivity {
                 userInfo.put("RoomID", roomName);
                 userInfo.put("Username", userName);
                 socket.emit("joinRoom", userInfo);
+
+                /*
+                When the player tries to join, the server checks if the room which the player requests
+                to join is currently running a game. If the game has already started, the server emits
+                "joinFailed" then the player is notified of this failure and has all his previous entries
+                set to empty. If the room is not running any game, the server emits 'joinSuccess' then
+                the player is directed to the lobby.
+                 */
+                // socket listener to check if room joined successfully
+                socket.on("joinSuccess", new Emitter.Listener() {
+                    @Override
+                    public void call(Object... args) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // get to the next activity
+                                Intent intent = new Intent(getApplicationContext(), WaitingLobby.class);
+                                startActivity(intent);
+                            }
+                        });
+                    }
+                });
+
+                // socket listener to check if the room cannot be joined
+                socket.on("joinFailed", new Emitter.Listener() {
+                    @Override
+                    public void call(Object... args) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(JoinGame.this, "Game has already started, please join another room", Toast.LENGTH_SHORT).show();
+                                roomEntry.setText("");
+                                nameEntry.setText("");
+                                roomName = "";
+                                userName = "";
+                                socket.disconnect();
+                            }
+                        });
+                    }
+                });
             } catch (Exception e) {
                 Toast.makeText(this, e.getMessage() + "", Toast.LENGTH_SHORT).show();
             }
         }
-        // get to the next activity
-        Intent intent = new Intent(getApplicationContext(), WaitingLobby.class);
-        startActivity(intent);
     }
+    // ======================== END OF HELPER FUNCTIONS ====================================== //
 }

@@ -15,6 +15,16 @@ function Player(socketID, score, hand = [], name) {
     this.name = name;
 }
 
+// Constructor for a package of modifiable room attributes to be passed to client for cuztomizing
+function roomAttributes(ROOM_NAME) {
+    let gameRoom = roomMap.get(ROOM_NAME);
+    this.roomName = ROOM_NAME;
+    this.ROUND_TIME = gameRoom.ROUND_TIME;
+    this.REST_TIME = gameRoom.REST_TIME;
+    this.MAX_HAND = gameRoom.MAX_HAND;
+    this.NUMBER_ROUNDS = gameRoom.NUMBER_ROUNDS;
+}
+
 // Create a mutable hashmap with roomName being the Key and json object containing the room info as Value
 let roomMap = new HashMap();
 
@@ -62,14 +72,35 @@ function createRoom(roomName) {
         answers : cardDeck.answersDatabase.slice(), // array of answers
         questionIndex : 0,
         answerIndex : 0,
-        currRoundNumber : 1, // the current round number. Increments every round
+        currRoundNumber : 0, // the current round number. Increments every round
         voterHasVoted : false,
+        gameStarted : false,
         players : new ArrayList,// Create a mutable arraylist of players
         playerNames : new ArrayList,// Create a mutable arraylist with all the player names
         // Create a mutable array of the cards in the play area
         playArea : []
     }
     roomMap.set(roomName, gameRoom);// Create a Key-Value pair of roomName with the room object
+}
+
+// Reset a room after a game ends and the players decide to play again in the same room
+function resetRoom(roomName) {
+    // import a different permutation of cards than previous games
+    let cardDeck = require('./database');
+    shuffleDeck(questionsDatabase); 
+    shuffleDeck(answersDatabase); 
+
+    // reset key attributes back to starting conditions
+    let gameRoom = roomMap.get(roomName);
+    gameRoom.voterIndex = 0;
+    gameRoom.questions = cardDeck.questionsDatabase.slice();
+    gameRoom.answers = cardDeck.answersDatabase.slice();
+    gameRoom.questionIndex = 0;
+    gameRoom.answerIndex = 0;
+    gameRoom.currRoundNumber = 1;
+    gameRoom.voterHasVoted = false;
+    gameRoom.gameStarted = false;
+    gameRoom.playArea = [];
 }
 
 // Create a player when player connects to Server
@@ -87,6 +118,17 @@ function createPlayer(roomName, socketID, name) {
     io.to(player.socketID).emit('answer', player.hand); // emitting an array
 }
 
+// Update room attributes when the player wishes to customize room settings
+function updateRoomAttributes(attributeBox) { // attributeBox is a package of info received from client, refer to function roomAttributes for more info
+    roomName = attributeBox.roomName;
+    
+    let gameRoom = roomMap.get(roomName);
+    gameRoom.ROUND_TIME = attributeBox.ROUND_TIME;
+    gameRoom.REST_TIME = attributeBox.REST_TIME;
+    gameRoom.MAX_HAND = attributeBox.MAX_HAND;
+    gameRoom.NUMBER_ROUNDS = attributeBox.NUMBER_ROUNDS;
+}
+
 // Reset and/or update variables before the round starts
 function updateVariables(roomName) {
     let gameRoom = roomMap.get(roomName);
@@ -98,13 +140,11 @@ function updateVariables(roomName) {
 
     // increment the round number
     gameRoom.currRoundNumber = gameRoom.currRoundNumber + 1;
+    io.in(roomName).emit("updateRoundNumber", gameRoom.currRoundNumber);
     
     // update playArea
     gameRoom.playArea.length = 0; // clear the play Area
     io.in(roomName).emit('updatePlayArea', gameRoom.playArea); // emit the updated play area
-
-    // update player infos
-    io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
 }
 
 // Change player turn
@@ -170,7 +210,8 @@ function checkIfNoAnswer(roomName) {
     let gameRoom = roomMap.get(roomName);
     if (gameRoom.playArea.length == 0) { // if there's no one in the playArea
         gameRoom.voterHasVoted = true; // make it as if voter has voted, skipping the voting round all together
-        // optional TODO: use the 'generalBroadcast' socket with the message "No one answered this round. Going to next round."
+        // use the 'generalBroadcast' socket with the message "No one answered this round. Going to next round."
+        io.in(roomName).emit("generalBroadcast", "No one answered this round. Going to next round.");
     }
 }
 
@@ -180,9 +221,16 @@ function checkToPenaliseVoter(roomName) {
         let totalPlayers = gameRoom.players.length // get the total number of players in the game
         let voterForTheRound = gameRoom.voterIndex % totalPlayers;
         let voter = gameRoom.players.get(voterForTheRound); // find the voter for the round
-        voter.score = voter.score - 1; // decrease one from the voter's score
+        if (voter.score > 0) {
+            voter.score = voter.score - 1; // decrease one from the voter's score
+        }
         // optional TODO: use the 'generalBroadcast' socket with the message  --> gameRoom.voter.name + "did not answer this round. He minus one point"
+        io.in(roomName).emit("generalBroadcast", "Voter did not vote this round. One point is deducted from him.");
     }
+}
+
+async function joiningRoom(roomName) {
+    
 }
 
 // ===================================================== END OF FUNCTIONS ===================================================== //
@@ -191,6 +239,9 @@ function checkToPenaliseVoter(roomName) {
 async function gameRound(roomName) {
     // the current game room
     let gameRoom = roomMap.get(roomName);
+
+    // indicate that game has started for this particular gameRoom
+    gameRoom.gameStarted = true;
     
     // first round actions
     if (gameRoom.currRoundNumber == 1) {
@@ -243,6 +294,9 @@ async function gameRound(roomName) {
     // Check whether voter needs to be penalised for not voting people's cards
     checkToPenaliseVoter(roomName);
 
+    // update player infos
+    io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
+
     // broadcast resting time for the next round
     let restTimeLeft = gameRoom.REST_TIME;
     while (restTimeLeft >= 0) {
@@ -257,10 +311,13 @@ async function gameRound(roomName) {
         return; // break out of gameRound function
     } else if (gameRoom.players.size() == 1) { // if got only exactly one person in the room
         // don't let the game continue
-        io.in(roomName).emit('generalBroadcast', "Please rejoin the game with another player(s) to play the game."); // emit that game cannot continue with just one player
+        //io.in(roomName).emit('generalBroadcast', "Please rejoin the game with another player(s) to play the game."); // emit that game cannot continue with just one player
+        io.in(roomName).emit("onePlayerLeft");
+        roomMap.delete(roomName);
         return;
     } else if (gameRoom.currRoundNumber > gameRoom.NUMBER_ROUNDS) { // if exceed the NUMBER_ROUNDS
         io.in(roomName).emit('gameEnd', gameRoom.players); // emit the end of the game to all players in the room
+        resetRoom(roomName); // reset the current room while retaining player and customizable information
         return; // break out of the gameRound function
     } else {
         // round number will be incremented in the update variables function
@@ -283,10 +340,36 @@ io.on('connection', function(socket) {
         if (!roomMap.has(roomName)) {// check if the room has been created, if not, create a new room with the respective roomName
             createRoom(roomName);  
         }
-        createPlayer(roomName, socket.id, userName);// create a player object with attributes of the connected socket
-        socket.join(roomName);// join the current socket to the respective channel(room)
+        
         let gameRoom = roomMap.get(roomName);
-        io.in(roomName).emit("newPlayerJoined", gameRoom.playerNames);// inform the waiting lobby of this room that a new player has joined
+        
+        if (!gameRoom.gameStarted) {// check if the game round of this particular room has already started
+            
+            // inform the player that he has joined successfully
+            io.to(socket.id).emit("joinSuccess")
+            createPlayer(roomName, socket.id, userName);// create a player object with attributes of the connected socket
+            socket.join(roomName);// join the current socket to the respective channel(room)
+            io.in(roomName).emit("newPlayerJoined", gameRoom.playerNames);// inform the waiting lobby of this room that a new player has joined
+            // send a packege of room attributes to client in case he wishes to customize room settings
+            let attributeBox = new roomAttributes(roomName);
+            io.in(roomName).emit("roomAttributes", attributeBox);
+        } else {
+            io.to(socket.id).emit("joinFailed");// inform the player he is not able to join as the game of the room has already started
+        }
+    });
+
+    // socket listener to update the waiting lobby about room info
+    socket.on("requestRoomUpdate", function(roomName) {
+        let gameRoom = roomMap.get(roomName);
+        io.to(socket.id).emit("newPlayerJoined", gameRoom.playerNames);
+        let attributeBox = new roomAttributes(roomName);
+        io.to(socket.id).emit("roomAttributes", attributeBox);
+    })
+
+    // socket listener to update Room attributes when a player decides to customize his room
+    socket.on("updatedAttributes", function (attributeBox) {
+        updateRoomAttributes(attributeBox);
+        io.in(roomName).emit("roomAttributes", attributeBox);// update all players of the room about the change of attributes
     });
 
 
@@ -355,36 +438,40 @@ io.on('connection', function(socket) {
         }
     });
 
-
     socket.on('disconnect', function(empty) { // placeholder variable
         // check if the current disconnected socket id is registered with roomNameSocketIdMap (this condition is to prevent certain bugs during disconnection, to be improved)
         if (roomNameSocketIdMap.has(socket.id)) {
             roomName = roomNameSocketIdMap.get(socket.id);
-            let gameRoom = roomMap.get(roomName);
-            let removedPlayer;
-            let removedPlayerName;
-            // remove the player from the players arraylist
-            gameRoom.players.find(function(player) {
-                if (player.socketID == socket.id) {
-                    removedPlayer = player;
-                }
-            });
-            // then remove the name from the playerName arraylist too
-            gameRoom.playerNames.find(function(playerName) {
-                if (playerName === removedPlayer.name) {
-                    console.log(playerName);
-                    removedPlayerName = playerName;
-                }
-            });
+            
+            if (roomMap.has(roomName)){ // check if the room has already been deleted(for the case when player quits after gameEnd)
+                let gameRoom = roomMap.get(roomName);
+                let removedPlayer;
+                let removedPlayerName;
+                // remove the player from the players arraylist
+                gameRoom.players.find(function(player) {
+                    if (player.socketID == socket.id) {
+                        removedPlayer = player;
+                    }
+                });
+                // then remove the name from the playerName arraylist too
+                gameRoom.playerNames.find(function(playerName) {
+                    if (playerName === removedPlayer.name) {
+                        console.log(playerName);
+                        removedPlayerName = playerName;
+                    }
+                });
 
-            gameRoom.players.removeElement(removedPlayer); // 1) remove player object from players array list
-            gameRoom.playerNames.removeElement(removedPlayerName); // 2) remove player name from the playerNames array list
-            roomNameSocketIdMap.delete(removedPlayer.socketID) // 3) remove player socketID from the socketID hashmap
-            console.log(gameRoom.players);
-            console.log(gameRoom.playerNames);
-            io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
-            io.in(roomName).emit('newPlayerJoined', gameRoom.playerNames); // (reuse of socket) inform the waiting lobby of this room that a new player has LEFT
-            console.log("\x1b[41m%s\x1b[0m", "Player " + socket.id + " has left");
+                gameRoom.players.removeElement(removedPlayer); // 1) remove player object from players array list
+                gameRoom.playerNames.removeElement(removedPlayerName); // 2) remove player name from the playerNames array list
+                roomNameSocketIdMap.delete(removedPlayer.socketID); // 3) remove player socketID from the socketID hashmap
+                console.log(gameRoom.players);
+                console.log(gameRoom.playerNames);
+                io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
+                io.in(roomName).emit('newPlayerJoined', gameRoom.playerNames); // (reuse of event) inform the waiting lobby of this room that a new player has LEFT
+                console.log("\x1b[41m%s\x1b[0m", "Player " + socket.id + " has left");
+            } else {
+                roomNameSocketIdMap.delete(socket.id);
+            }
         }
     });
 });

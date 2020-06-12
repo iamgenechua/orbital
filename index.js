@@ -5,7 +5,7 @@ let ArrayList = require('arraylist');
 let HashMap = require('hashmap');
 let express = require('express')();
 let http = require('http').Server(express);
-let io = require('socket.io')(http);
+let io = require('socket.io')(http, { transports: ['websocket']});
 
 // Constructor for player whenever someone joins the server
 function Player(socketID, score, hand = [], name) {

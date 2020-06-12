@@ -97,7 +97,7 @@ function resetRoom(roomName) {
     gameRoom.answers = cardDeck.answersDatabase.slice();
     gameRoom.questionIndex = 0;
     gameRoom.answerIndex = 0;
-    gameRoom.currRoundNumber = 1;
+    gameRoom.currRoundNumber = 0;
     gameRoom.voterHasVoted = false;
     gameRoom.gameStarted = false;
     gameRoom.playArea = [];
@@ -229,10 +229,6 @@ function checkToPenaliseVoter(roomName) {
     }
 }
 
-async function joiningRoom(roomName) {
-    
-}
-
 // ===================================================== END OF FUNCTIONS ===================================================== //
 
 // ===================================================== START OF MAIN LOGIC ===================================================== //
@@ -243,10 +239,13 @@ async function gameRound(roomName) {
     // indicate that game has started for this particular gameRoom
     gameRoom.gameStarted = true;
     
+
     // first round actions
-    if (gameRoom.currRoundNumber == 1) {
+    if (gameRoom.currRoundNumber == 0) {
         await sleep(0.8); // wait for all sockets to receive input on first round
     }
+
+
     
     // reset round and update variables
     updateVariables(roomName);

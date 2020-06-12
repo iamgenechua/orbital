@@ -185,6 +185,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+
                         textView_question.setText(myArgs[0].toString()); // changes the question textView to the question card dealt to everyone
                     }
                 });

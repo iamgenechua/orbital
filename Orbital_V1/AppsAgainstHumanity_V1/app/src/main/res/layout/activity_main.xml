@@ -46,9 +46,7 @@
             android:background="#FFFFFF"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-        </ListView>
+            app:layout_constraintTop_toTopOf="parent"/>
 
         <TextView
             android:id="@+id/textView8"
@@ -299,23 +297,6 @@
 
     <TextView
         android:id="@+id/textView_question"
-        android:layout_width="374dp"
-        android:layout_height="56dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginLeft="24dp"
-        android:layout_marginTop="3dp"
-        android:background="@drawable/questionbackground"
-        android:gravity="center"
-        android:hint="question"
-        android:text="Question"
-        android:textColor="#FFFFFF"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView7" />
-
-    <TextView
-        android:id="@+id/textView_question3"
         android:layout_width="374dp"
         android:layout_height="56dp"
         android:layout_marginStart="24dp"

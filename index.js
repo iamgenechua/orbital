@@ -475,9 +475,11 @@ io.on('connection', function(socket) {
     });
 });
 
+const port = process.env.PORT || 3000;
+
 // Start server
-http.listen(3000, function() {
-    console.log("SERVER GAME STARTED ON PORT: 3000");
+http.listen(port, function() {
+    console.log(`SERVER GAME STARTED ON PORT: ${port}`);
 })
 
 // ===================================================== END OF SOCKET LISTENERS ===================================================== //

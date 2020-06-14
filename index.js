@@ -438,6 +438,7 @@ io.on('connection', function(socket) {
     });
 
     socket.on('disconnect', function(empty) { // placeholder variable
+        console.log("Someone is leaving");
         // check if the current disconnected socket id is registered with roomNameSocketIdMap (this condition is to prevent certain bugs during disconnection, to be improved)
         if (roomNameSocketIdMap.has(socket.id)) {
             roomName = roomNameSocketIdMap.get(socket.id);

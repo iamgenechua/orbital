@@ -3,9 +3,18 @@
 // import dependencies
 let ArrayList = require('arraylist');
 let HashMap = require('hashmap');
-let express = require('express')();
-let http = require('http').Server(express);
-let io = require('socket.io')(http, { transports: ['polling']});
+let express = require('express');
+let socketIO = require('socket.io');
+
+// create and run the server
+const PORT = process.env.PORT || 3000;
+const INDEX = '/index.html';
+
+const server = express()
+  .use((req, res) => res.sendFile(INDEX, { root: __dirname }))
+  .listen(PORT, () => console.log(`Listening on ${PORT}`));
+
+const io = socketIO(server);
 
 // Constructor for player whenever someone joins the server
 function Player(socketID, score, hand = [], name) {
@@ -30,11 +39,6 @@ let roomMap = new HashMap();
 
 // Create a mutable hashmap to keep track of which socketID belongs to which room
 let roomNameSocketIdMap = new HashMap();
-
-// Create server
-express.get('/', function(req, res) {
-    res.sendFile('index.html', {root: __dirname});
-});
 
 // ===================================================== END OF GLOBAL VARIABLES ===================================================== //
 
@@ -475,12 +479,5 @@ io.on('connection', function(socket) {
         }
     });
 });
-
-const port = process.env.PORT || 3000;
-
-// Start server
-http.listen(port, function() {
-    console.log(`SERVER GAME STARTED ON PORT: ${port}`);
-})
 
 // ===================================================== END OF SOCKET LISTENERS ===================================================== //

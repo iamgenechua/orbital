@@ -24,7 +24,7 @@ function Player(socketID, score, hand = [], name) {
     this.name = name;
 }
 
-// Constructor for a package of modifiable room attributes to be passed to client for cuztomizing
+// Constructor for a package of modifiable room attributes to be passed to client for customizing
 function roomAttributes(ROOM_NAME) {
     let gameRoom = roomMap.get(ROOM_NAME);
     this.roomName = ROOM_NAME;

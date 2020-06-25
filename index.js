@@ -68,7 +68,7 @@ function createRoom(roomName) {
 
     let gameRoom = {
         ROUND_TIME : 10,
-        REST_TIME : 1,
+        REST_TIME : 5,
         MAX_HAND : 5,
         NUMBER_ROUNDS : 10,
         voterIndex : 0, // the index of the voter. Loop around with %.
@@ -96,6 +96,9 @@ function resetRoom(roomName) {
 
     // reset key attributes back to starting conditions
     let gameRoom = roomMap.get(roomName);
+    for (let i = 0; i < gameRoom.players.size(); i++) {
+        gameRoom.players.get(i).score = 0;
+    }
     gameRoom.voterIndex = 0;
     gameRoom.questions = cardDeck.questionsDatabase.slice();
     gameRoom.answers = cardDeck.answersDatabase.slice();
@@ -247,6 +250,8 @@ async function gameRound(roomName) {
     // first round actions
     if (gameRoom.currRoundNumber == 0) {
         await sleep(0.8); // wait for all sockets to receive input on first round
+        // update player infos
+        io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
     }
 
 
@@ -318,7 +323,7 @@ async function gameRound(roomName) {
         io.in(roomName).emit("onePlayerLeft");
         roomMap.delete(roomName);
         return;
-    } else if (gameRoom.currRoundNumber > gameRoom.NUMBER_ROUNDS) { // if exceed the NUMBER_ROUNDS
+    } else if (gameRoom.currRoundNumber >= gameRoom.NUMBER_ROUNDS) { // if exceed the NUMBER_ROUNDS
         io.in(roomName).emit('gameEnd', gameRoom.players); // emit the end of the game to all players in the room
         resetRoom(roomName); // reset the current room while retaining player and customizable information
         return; // break out of the gameRound function
@@ -440,6 +445,16 @@ io.on('connection', function(socket) {
             }
         }
     });
+
+    socket.on('checkRmEmpty', function(roomName) { // if the player who's currently quitting is the last player of the room, delete the room
+        let gameRoom = roomMap.get(roomName);
+        // when the game ends, the entire players array would be cleared. 
+        if (gameRoom.players.size() == 1) {
+            console.log("gameRoom size: " + gameRoom.players.size()); 
+            roomMap.delete(roomName);
+            console.log("room deleted");  
+        }
+    })
 
     socket.on('disconnect', function(empty) { // placeholder variable
         console.log("Someone is leaving");

@@ -232,7 +232,7 @@ function checkToPenaliseVoter(roomName) {
             voter.score = voter.score - 1; // decrease one from the voter's score
         }
         // optional TODO: use the 'generalBroadcast' socket with the message  --> gameRoom.voter.name + "did not answer this round. He minus one point"
-        io.in(roomName).emit("generalBroadcast", "Voter did not vote this round. One point is deducted from him.");
+        io.in(roomName).emit("generalBroadcast", "Voter did not vote this round. One point is deducted from them.");
     }
 }
 

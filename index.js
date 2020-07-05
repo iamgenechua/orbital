@@ -226,7 +226,7 @@ function checkToPenaliseVoter(roomName) {
     let gameRoom = roomMap.get(roomName);
     if (gameRoom.voterHasVoted == false) { // if voter has not voted
         let totalPlayers = gameRoom.players.length // get the total number of players in the game
-        let voterForTheRound = gameRoom.voterIndex % totalPlayers;
+        let voterForTheRound = (gameRoom.voterIndex - 1) % totalPlayers;
         let voter = gameRoom.players.get(voterForTheRound); // find the voter for the round
         if (voter.score > 0) {
             voter.score = voter.score - 1; // decrease one from the voter's score

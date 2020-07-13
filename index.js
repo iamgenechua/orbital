@@ -249,7 +249,7 @@ async function gameRound(roomName) {
 
     // first round actions
     if (gameRoom.currRoundNumber == 0) {
-        await sleep(0.8); // wait for all sockets to receive input on first round
+        await sleep(1.0); // wait for all sockets to receive input on first round
         // update player infos
         io.in(roomName).emit('updatePlayerInfo', gameRoom.players); // emit the updated list of players and their respective scores
     }
